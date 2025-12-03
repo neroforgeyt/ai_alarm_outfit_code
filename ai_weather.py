@@ -104,7 +104,7 @@ def llama_3_output(temp):
         Given this list of clothes that I own can you make a recommendation for what I should wear today based on the weather?
         The reccomendation should take into consideration the max temperature and reflect seasonal appropriateness. Please choose a single outfit
         consisting of a shrt, pants, and optionally (for you to choose if I wear or not) a jacket/hoodie and hat/gloves if necessary. Your suggestion must be absolute and
-        you are not allowed to leave anything up to my decision additionally do not mention where I live. In general err on the side of being less formal.
+        you are not allowed to leave anything up to my decision. In general err on the side of being less formal.
         Here is the list of clothes I own:
         List: Black hoodie, white hoodie, blue hoodie, blue sweater, purple sweater, red winter coat, jeans, black slacks, 
         blue athletic shorts, black athletic shorts, yellow t-shirt,
@@ -116,53 +116,47 @@ def llama_3_output(temp):
     print(resp.json()["response"])
     return resp.json()["response"]
 
-# Load historical target values and past values of covariates
-#context_df = pd.read_parquet("https://autogluon.s3.amazonaws.com/datasets/timeseries/electricity_price/train.parquet")
-
-#input("Press Enter to continue...")
-
 parser = argparse.ArgumentParser(description="Weather Forecasting with Chronos2")
 parser.add_argument("--latitude", type=float, required=True, help="Latitude of the location")
 parser.add_argument("--longitude", type=float, required=True, help="Longitude of the location")
 parser.add_argument("--previous_days", type=str, default="100", help="Number of previous days for historical data")
-parser.add_argument("--time", type=str, required=True, help="Target time to run the script (HH:MM in 24-hour format)")
+parser.add_argument("--time", type=str, required=False, help="Optional: Target time to run the script (HH:MM in 24-hour format)")
 
 if __name__ == "__main__":
     args = parser.parse_args()
     lat = args.latitude
     lon = args.longitude
+    if args.time:
 
         # Target time (today at 7:30 PM)
-    target_hour = int(args.time.split(":")[0])
-    target_minute = int(args.time.split(":")[1])
+        target_hour = int(args.time.split(":")[0])
+        target_minute = int(args.time.split(":")[1])
+        # Get the current time
+        now = datetime.now()
 
-    # Get the current time
-    now = datetime.now()
+        # Create a datetime object for today at the target time
+        target_time = now.replace(hour=target_hour, minute=target_minute, second=0, microsecond=0)
 
-    # Create a datetime object for today at the target time
-    target_time = now.replace(hour=target_hour, minute=target_minute, second=0, microsecond=0)
+        # If the target time is already past today, schedule for tomorrow
+        if target_time < now:
+            target_time += timedelta(days=1)
 
-    # If the target time is already past today, schedule for tomorrow
-    if target_time < now:
-        target_time += timedelta(days=1)
+        # Calculate the number of seconds to wait
+        seconds_to_wait = (target_time - now).total_seconds()
 
-    # Calculate the number of seconds to wait
-    seconds_to_wait = (target_time - now).total_seconds()
+        print(f"Waiting for {seconds_to_wait} seconds until {target_time}...")
+        time.sleep(seconds_to_wait)  # Pauses execution until target time
 
-    print(f"Waiting for {seconds_to_wait} seconds until {target_time}...")
-    time.sleep(seconds_to_wait)  # Pauses execution until target time
-
-    # Move mouse slightly to avoid screen lock
-    print("Pressing key to prevent screen lock...")
-    #x, y = pyautogui.position()
-    #pyautogui.moveTo(x+10, y+10)
-    #pyautogui.moveTo(x, y)
     # Simulate key press (Shift) to wake screen
+    print("Pressing key to prevent screen lock...")
+
     ctypes.windll.user32.keybd_event(0x10, 0, 0, 0)  # press Shift
     ctypes.windll.user32.keybd_event(0x10, 0, 2, 0)  # release Shift
 
-    print("Recording webcam video and audio for 2 minutes...")
+    #If wanting to record webcam install ffmpeg and uncomment this section as well as section at top
+    #print("Recording webcam video and audio for 2 minutes...")
     #record_webcam()
+
     previous_days = args.previous_days
     startdate,enddate = get_dates(previous_days)
 
